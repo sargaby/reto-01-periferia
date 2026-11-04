@@ -1,71 +1,112 @@
 # Reto 01 · Registro como proveedor
 
-Estado: configuración base. Solo están disponibles el frontend inicial y
-`GET /api/health`. No hay chat, ciclo del agente, proveedor LLM ni herramientas
-de negocio implementados. No se generan formularios ni paquetes.
+Fase 4: herramientas P0 y demo sin LLM. El servidor conserva únicamente
+`GET /api/health`; chat, proveedor LLM y ciclo del agente siguen pendientes.
 
-## Requisitos y arranque
+## Arranque y comandos
 
-Node.js 20+ y npm. Desde la raíz del proyecto:
+Requiere Node 20+ y npm. Ejecutar desde la raíz:
 
-```sh
-npm install
-npm run dev
+```powershell
+npm.cmd install
+npm.cmd run dev
 ```
 
-Un único proceso Node sirve Express y el frontend en http://localhost:3000.
-En PowerShell con scripts bloqueados, usar `npm.cmd` en lugar de `npm`.
-No hace falta una clave de modelo para esta fase.
+Un proceso sirve API y frontend en http://localhost:3000. En PowerShell se usa
+`npm.cmd`/`npx.cmd` para evitar el bloqueo de los scripts `.ps1`.
+
+```powershell
+npx.cmd tsc --noEmit
+npx.cmd tsx demo.ts
+```
+
+También existen `npm run typecheck`, `npm run build`, `npm start` (tras compilar)
+y `npm run demo`. La demo limpia **out/** al comenzar y no requiere API key.
+Rechaza enlaces en esa carpeta antes de eliminarla.
 
 ## Configuración
 
-`.env.example` enumera las variables. Opcionalmente copiarlo a `.env`:
+`.env.example` describe `PORT` (3000 por defecto) y las variables LLM reservadas,
+aún sin utilizar. Nunca incluir claves en frontend, repositorio o logs.
+Las herramientas reciben `{ directory, sessionId, referenceDate? }` como contexto.
+`directory` es la raíz del proyecto; `referenceDate` usa `YYYY-MM-DD`, o UTC actual
+si se omite. La demo fija 2026-11-03 para resultados reproducibles; puede cambiarse:
 
-- `PORT`: puerto HTTP; vacío o ausente usa 3000.
-- `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`: reservadas para una fase posterior;
-  todavía no se utilizan. Las claves solo deberán existir en el backend.
-
-## Comandos
-
-- `npm run dev`: servidor con recarga ante cambios de TypeScript.
-- `npm run typecheck`: validación TypeScript sin generar archivos.
-- `npm run build`: compila a `dist/`.
-- `npm start`: ejecuta la compilación; requiere `npm run build` previo.
-- `npm run demo`: informa que la demo está pendiente; aún no procesa casos.
-
-## API actual
-
-`GET /api/health` devuelve HTTP 200:
-
-```json
-{ "ok": true, "provider": null, "model": null }
+```powershell
+$env:REFERENCE_DATE = '2026-09-03'
+npx.cmd tsx demo.ts
+Remove-Item Env:REFERENCE_DATE
 ```
 
-Este endpoint comprueba el servidor HTTP, no la disponibilidad de un LLM.
-Las demás rutas API devuelven 404. Las rutas de chat y sesiones están pendientes.
+`REFERENCE_DATE` se lee del entorno del proceso de demo; no requiere `.env`.
 
-## Arquitectura
+## Herramientas disponibles
 
-- `agent/prompt.md`: espacio reservado para comportamiento del agente.
-- `src/server.ts`: servidor HTTP y frontend estático desde `web/`.
-- `src/llm/adapter.ts`: contrato preliminar del adaptador, sin implementación.
-- `src/tools/proveedor.ts`: espacio reservado para herramientas.
-- `src/knowledge/registro-proveedor.md`: espacio reservado para reglas del proceso.
-- `demo.ts`: entrada futura de ejecución sin modelo.
-- `fixtures/`: datos de entrada, sin modificaciones.
-- `out/`: salidas futuras, todavía no generadas.
+`src/tools/proveedor.ts` exporta objetos `leer_solicitud`, `mapear_campos`,
+`generar_formulario` y `armar_paquete`. Sus nombres de modelo serán
+`proveedor_<export>`. Tienen `description`, `args` con Zod y
+`execute(args, ctx)` que devuelve JSON serializado `{ ok, data }` o
+`{ ok: false, error }`. Validan también cuando se invocan directamente.
 
-Link de prueba y despliegue: pendientes. El alcance completo y su estado están
-documentados en `SOLUCION.md`.
+- Lectura de correo, plantilla y soportes, con validación de estructura.
+- Mapeo por glosario, rutas del maestro, estados y confirmación tributaria.
+  Rechaza campos ajenos a la plantilla, incluidos datos bancarios no solicitados.
+- Excel real con ExcelJS, hojas/celdas exactas y faltantes vacíos. El mapeo
+  completo se contrasta con el maestro antes de escribirlo.
+- PDF P1 pendiente: devuelve error explícito, conserva reportes, no crea PDF.
+- Portal: devuelve `formato no soportado`, crea `valores-portal.md` para copiar.
+- Paquete con Excel cuando corresponde, soportes existentes (también vencidos),
+  checklist y borrador sin información bancaria. Los soportes ausentes/vencidos
+  bloquean la firma; los campos faltantes no la bloquean. Sin formulario
+  soportado el paquete se indica incompleto y tampoco queda listo para firma.
 
-## Verificación de esta fase
+Las rutas se resuelven desde el contexto y rechazan traversal y enlaces.
+Se generan `out/log.jsonl` y `out/<caso>/log.jsonl`, con resumen sin valores de
+negocio. Un caso inválido registra solo globalmente si su nombre es inseguro.
+Un fallo de auditoría devuelve error, incluso si quedaron salidas parciales.
 
-Entorno disponible: Node 26.13.0 y npm 11.20.0. La instalación falló con
-`EACCES` al acceder a `registry.npmjs.org`; el intento offline falló por falta
-de dependencias en caché. Por tanto, aún no están verificados el arranque HTTP
-ni la compilación: `npm run dev` y `npm run typecheck` fallaron por ausencia
-de `tsx` y `tsc`. Tampoco se generó `package-lock.json`.
+## Salidas y resultados comprobados
 
-Pendiente al disponer de acceso al registro: `npm install`, `npm run typecheck`,
-`npm run build` y `npm run dev`; comprobar `/` y `/api/health`. La compatibilidad
-con Node 20 está configurada, pero no se ha ejecutado con esa versión.
+En `out/<caso>/`: `mapeo.json`, `faltantes.md`, `log.jsonl`, formulario Excel
+cuando corresponde y `paquete/`. Panamá incluye `valores-portal.md`.
+`out/pruebas/` contiene copias alteradas de fixtures para pruebas negativas.
+
+Con fecha 2026-11-03:
+
+| Caso | Llenos | Faltantes | Confirmación | Resultado |
+|---|---:|---:|---:|---|
+| co-industrias-delta | 17 | 0 | 0 | Excel; Cámara vencida |
+| ec-corp-andina | 13 | 1 | 1 | PDF pendiente; Cámara vencida y soporte tributario ausente |
+| hn-agroexport-sula | 9 | 1 | 1 | Excel; Cámara y parafiscales vencidos |
+| pa-logistica-istmo | 8 | 0 | 1 | Valores de portal; Cámara vencida |
+
+Ningún paquete queda listo para firma en esa fecha.
+
+## Verificación ejecutada
+
+`npx.cmd --no-install tsc --noEmit` pasó. `npx.cmd --no-install tsx demo.ts`
+falló antes de cargar la aplicación con `uv_os_get_passwd ENOMEM` en tsx bajo
+Node 26.13.0. No se cambiaron permisos ni dependencias para eludir ese fallo.
+Se verificó la demo compilada con:
+
+```powershell
+npx.cmd tsc
+node dist/demo.js
+```
+
+La ejecución pasó: reapertura y comprobación de todas las etiquetas/valores
+Excel, copias del formulario, archivos de paquete, ausencia de datos bancarios
+en borradores, logs, hashes de fixtures, caso inexistente, traversal, campo
+faltante, fechas límite de vigencia, soporte ausente, JSON corrupto y rechazo
+de mapeo alterado. Los fixtures corruptos se crean solo bajo `out/pruebas/`.
+Node 20 está configurado como mínimo, pero la ejecución se verificó con Node 26.
+
+## API, arquitectura y pendientes
+
+`GET /api/health` devuelve `{ "ok": true, "provider": null, "model": null }`.
+Las demás rutas API devuelven 404. No existe integración de herramientas al chat.
+`agent/prompt.md`, `src/llm/adapter.ts` y `src/knowledge/` conservan su preparación
+para fases posteriores. Las herramientas son importables sin servidor.
+
+Pendientes: PDF P1, envío simulado P1 con confirmación, agente/chat y despliegue.
+Link público: pendiente. Consultar `SOLUCION.md` para cobertura y decisiones.
