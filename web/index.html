@@ -1,19 +1,27 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Reto 01 · Registro como proveedor</title>
-    <link rel="stylesheet" href="/styles.css">
-    <script src="/app.js" defer></script>
-  </head>
-  <body>
-    <main>
-      <h1>Registro como proveedor</h1>
-      <p>Fase actual: configuración base y arquitectura.</p>
-      <p>El chat, el modelo y las herramientas de negocio están pendientes.</p>
-      <button id="check-health" type="button">Comprobar servidor</button>
-      <p id="health-status" role="status">Sin comprobar.</p>
-    </main>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Registro como proveedor · Reto 01</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><div><p class="eyebrow">Reto 01</p><h1>Registro como proveedor</h1></div><button id="new-session" type="button">Nueva conversación</button></header>
+    <p>Prepara formularios Excel y soportes para revisión humana. PDF pendiente. No se envían ni firman documentos.</p>
+    <p id="connection" role="status">Comprobando servidor…</p>
+    <section id="history" aria-label="Historial de conversación" aria-live="polite"></section>
+    <aside id="confirmation" hidden>Revisión humana pendiente. Responde explícitamente en el próximo mensaje. Confirmar no envía documentos.</aside>
+    <p id="processing" role="status" hidden>Procesando solicitud y herramientas…</p>
+    <p id="error" role="alert"></p>
+    <form id="chat-form">
+      <label for="message">Mensaje</label>
+      <textarea id="message" required maxlength="8000" rows="3" placeholder='Procesa el caso "co-industrias-delta". Dime qué falta y si está listo para firma.'></textarea>
+      <button id="send" type="submit">Enviar mensaje</button>
+    </form>
+    <p id="session-info" class="muted"></p>
+  </main>
+</body>
 </html>
