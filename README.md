@@ -1,284 +1,299 @@
-# Reto 01 · Registro como proveedor
+# Reto 01 · Agente de registro como proveedor
 
-Fase 6: chat HTML/CSS/JS, sesiones en memoria, ciclo compartido y modo demostración
-local sin API. OpenAI y Google Gemini se conservan. Las herramientas P0 y demo.ts siguen intactas.
-No se implementan PDF P1, envío simulado, firma, portal real ni bonus.
+Aplicación del Reto Técnico 01 de Periferia IT Group. Prepara registros de
+proveedor desde solicitudes normalizadas y un repositorio maestro ficticio.
+La analista administrativa revisa campos, faltantes, soportes y el paquete para
+firma. La aplicación no firma ni envía documentos.
 
-## Demostración funcional sin servicios externos
+Documentación auditada el **2026-11-04** contra PRD, código y pruebas existentes.
+La arquitectura y decisiones se explican en [SOLUCION.md](SOLUCION.md).
 
-Desde PowerShell en la raíz, con el servidor detenido:
+## Estado y limitaciones
 
-```powershell
-npm.cmd run build
-$env:REFERENCE_DATE = '2026-11-03'
-node dist/demo.js
-node --test tests/*.test.mjs
-$env:LLM_PROVIDER = 'demo'
-npm.cmd start
-```
+| Capacidad | Estado real |
+|---|---|
+| Chat, sesiones, procesamiento y llamadas visibles | Implementados; API local y recursos frontend probados |
+| Lectura, mapeo, Excel P0 y armado de paquete | Implementados y probados con herramientas reales |
+| OpenAI y Gemini | Tool calling implementado; conversación real no validada exitosamente |
+| demo | Planificador determinista local sin claves ni API; ejecuta las herramientas reales |
+| PDF P1 | No implementado; no genera un PDF ficticio |
+| Portal P2 | Valores copiables; automatización real no implementada |
+| Envío simulado P1 y módulo bonus | No implementados |
 
-Abrir http://localhost:3000 (o el PORT configurado). No hacen falta claves ni
-modelos configurados. Las variables del proceso prevalecen sobre `.env`. También
-se puede guardar `LLM_PROVIDER=demo` y `REFERENCE_DATE=2026-11-03` en `.env`.
-No ejecutar `demo.ts`/`dist/demo.js` mientras el servidor esté activo: limpia out/.
+La autora reportó intentos reales fallidos: OpenAI devolvió
+`credit_balance_exhausted` y Gemini `503 UNAVAILABLE`. La auditoría no repitió
+esas llamadas; no son una conversación exitosa ni una medición de consumo.
+Las pruebas automatizadas de proveedores utilizan respuestas controladas.
 
-Solicitudes admitidas, una por mensaje:
+## Requisitos e instalación desde un clon limpio
 
-- `Procesa el caso "co-industrias-delta"`
-- `Procesa el caso "ec-corp-andina"`
-- `Procesa el caso "hn-agroexport-sula"`
-- `Procesa el caso "pa-logistica-istmo"`
+- Node.js **20+**, según package.json. Auditoría ejecutada con Node 26.13.0 y npm
+  11.20.0; no se ejecutó específicamente con Node 20.
+- Git y npm. Backend TypeScript estricto y ESM; Express 5, Zod 3, ExcelJS 4,
+  tsx 4 y Google Gen AI 2.x. package-lock.json fija las versiones instalables.
+- No se requiere base de datos, React, Bun ni Docker.
 
-El modo demo no es un LLM ni una conexión simulada a uno: es un planificador
-determinista separado en `src/llm/demo.ts`. Emite las cuatro llamadas al registro
-existente, tomando campos y mapeo de los resultados anteriores. Los archivos,
-checklists y resúmenes proceden de las herramientas reales; no hay resultados
-de negocio precargados. Si falla la lectura o el mapeo, lo informa; PDF/portal
-continúan al paquete y conservan la limitación de formato. No interpreta lenguaje
-general, no corrige datos y no procesa varios casos por mensaje.
-
-La UI muestra **MODO DEMOSTRACIÓN · Sin LLM ni API externa**. Health devuelve
-`provider:"demo", model:null, configured:true, demonstration:true`. El consumo y
-la reserva de tokens son cero porque no existe un modelo externo. Se mantienen
-los límites de iteraciones, sesiones, historial y serialización; los presupuestos
-de tokens continúan aplicándose sin cambios a OpenAI/Gemini.
-
-La confirmación solo reconoce revisión en el turno siguiente. `envía` informa
-que no está implementado; no crea ENVIO-SIMULADO.md ni realiza acciones externas.
-Para volver a un proveedor real, cambiar LLM_PROVIDER y reiniciar. Si lo fijaste
-en PowerShell, cambiar `$env:LLM_PROVIDER` o quitarlo antes de usar `.env`.
-
-Resultados comprobados con fecha 2026-11-03:
-
-| Caso | Llenos / faltantes / confirmar | Archivo | Bloqueos |
-|---|---|---|---|
-| Colombia | 17 / 0 / 0 | Excel real | Cámara vencida |
-| Ecuador | 13 / 1 / 1 | PDF pendiente | Cámara vencida y soporte tributario ausente |
-| Honduras | 9 / 1 / 1 | Excel real | Cámara y parafiscales vencidos |
-| Panamá | 8 / 0 / 1 | Valores de portal | Cámara vencida; formulario no soportado |
-
-Todos los paquetes quedan con listo_para_firma:false. Ecuador carece de número
-de contribuyente especial; Honduras de referencias comerciales. Esos campos
-faltantes se informan y no constituyen por sí mismos un bloqueo.
-
-## Verificación integral de la Fase 6
-
-- TypeScript sin errores y compilación a dist/ correctos.
-- Las 12 pruebas anteriores pasaron antes de modificar código. Al finalizar,
-  `node --test tests/*.test.mjs` pasó **17 pruebas**; no se contactaron APIs reales.
-- `demo.ts` se ejecutó compilado con referencia 2026-11-03, después de comprobar
-  que no había servidor escuchando en los puertos de la aplicación. Pasó todas
-  sus comprobaciones y confirmó hashes de fixtures intactos.
-- Los cuatro casos se probaron de nuevo mediante HTTP en el servidor compilado,
-  en modo demo, sin claves. Health, sesiones, HTML, JS y CSS respondieron 200.
-- Las nuevas pruebas HTTP operan sobre copias temporales de fixtures y bloquean
-  fetch a destinos externos. Reabren Excel, comprueban hojas, etiquetas y cada
-  valor contra el maestro; verifican rutas de trazabilidad, faltantes, checklist,
-  soportes copiados/vencidos/ausentes, auditoría y ausencia de datos bancarios en
-  borradores. También comprueban redacción de un secreto de prueba en respuestas.
-- Se probaron caso inexistente, traversal, JSON corrupto, soporte eliminado tras
-  una ejecución previa, recuperación de sesión, confirmación y envío bloqueado.
-- `node --check web/app.js` pasó. La validación visual está **pendiente**:
-  el navegador integrado no estaba disponible y Computer Use detuvo el acceso a
-  Chrome porque no pudo determinar su URL con suficiente confianza.
-
-No se cambian OpenAI/Gemini, no se despliega ni se verifica el uso real de un LLM.
-Las ejecuciones se hicieron con Node 26.13.0; Node 20 no se ejecutó directamente.
-La ruta compilada evita el ENOMEM de tsx conocido en este entorno.
-
-## Probar desde PowerShell
-
-Requiere Node 20+ y npm. Ejecutar desde la raíz del repositorio:
+PowerShell, desde la carpeta donde quieras clonar:
 
 ```powershell
-npm.cmd install
-if (!(Test-Path .env)) { Copy-Item .env.example .env }
+git clone https://github.com/sargaby/reto-01-periferia.git
+cd reto-01-periferia
+npm.cmd ci
+Copy-Item .env.example .env
 notepad .env
 ```
 
-En `.env`, seleccionar `LLM_PROVIDER=openai`, `LLM_PROVIDER=gemini` o `LLM_PROVIDER=demo`.
-Solo hacen falta la clave y el modelo del proveedor seleccionado:
+El remoto corresponde al origin inspeccionado; el acceso depende de los permisos
+del repositorio. No se cronometró una instalación limpia ni el arranque del PRD.
+No sobrescribas un `.env` existente. Se usa `npm.cmd`/`npx.cmd` para evitar el
+bloqueo de scripts `.ps1` de PowerShell; otras terminales pueden usar npm/npx.
 
-- OpenAI: `OPENAI_API_KEY` y `OPENAI_MODEL`; el modelo debe soportar Chat
-  Completions, function tools, JSON mode y `max_completion_tokens`.
-- Gemini: `GEMINI_API_KEY` de Google AI Studio y `GEMINI_MODEL`, con el nombre
-  exacto del modelo accesible en tu proyecto. Se usa Gemini Developer API,
-  sin Vertex AI ni credenciales de Google Cloud.
+## Configuración y arranque
 
-LLM_PROVIDER vacío o ausente mantiene OpenAI por compatibilidad. No hay modelo
-seleccionado por defecto. Para cambiar proveedor, editar `.env`, detener el
-proceso con Ctrl+C y volver a arrancarlo; las sesiones en memoria se reinician.
-No publiques la clave ni la pegues en el chat. Solo el backend carga `.env`.
+Para demostrar sin servicios externos, establece en `.env`:
+
+```dotenv
+LLM_PROVIDER=demo
+REFERENCE_DATE=2026-11-03
+```
+
+Frontend y backend se levantan desde la raíz con un solo proceso:
 
 ```powershell
 npm.cmd run dev
 ```
 
-Abrir http://localhost:3000. Frontend y backend se sirven desde el mismo proceso.
-Si `tsx` falla con `uv_os_get_passwd ENOMEM`, usar la ruta compilada comprobada:
+Abre http://localhost:3000, salvo otro PORT. Si tsx falla con el error histórico
+`uv_os_get_passwd ENOMEM`, usa la ruta compilada comprobada:
 
 ```powershell
 npm.cmd run build
 npm.cmd start
 ```
 
-El proceso escucha en `0.0.0.0` y respeta `PORT`. Sin clave/modelo arranca, sirve
-la UI y responde health; el chat devuelve 503 con instrucciones, sin fingir una
-conversación. Reiniciar tras cambiar variables o instrucciones Markdown.
+dev usa tsx watch, build ejecuta tsc y start ejecuta dist/src/server.js. No se
+necesita otro servidor para el frontend. Se escucha en `0.0.0.0` y process.env.PORT.
+Reinicia tras cambiar proveedor, variables o los Markdown de instrucciones.
+Las variables del proceso prevalecen sobre `.env`: cambia o quita una variable
+fijada con `$env:LLM_PROVIDER` para usar el valor del archivo.
 
-Ejemplo de mensaje: `Procesa el caso "co-industrias-delta". Dime qué campos
-faltan, qué soportes debo actualizar y si el paquete está listo para firma.`
-Las llamadas aparecen con nombre, argumentos y resultado al finalizar el turno.
-El frontend muestra procesamiento y destaca revisión pendiente. Una confirmación
-solo reconoce la revisión del turno inmediatamente anterior; nunca envía archivos.
+| Variable real | Predeterminado | Uso |
+|---|---|---|
+| PORT | 3000 | Puerto HTTP, entero 1–65535 |
+| LLM_PROVIDER | openai | demo, openai o gemini; vacío conserva openai |
+| REFERENCE_DATE | Fecha UTC actual | Fecha válida YYYY-MM-DD para vigencias del chat |
+| OPENAI_API_KEY | Sin valor | Solo necesaria al seleccionar openai |
+| OPENAI_MODEL | Sin valor | Modelo OpenAI con herramientas, JSON y Chat Completions |
+| GEMINI_API_KEY | Sin valor | Clave de Google AI Studio, solo al seleccionar gemini |
+| GEMINI_MODEL | Sin valor | Modelo de Gemini Developer API |
+| LLM_MAX_ITERATIONS | 25 | Llamadas máximas al adaptador por turno |
+| LLM_MAX_SESSION_TOKENS | 100000 | Presupuesto conservador por sesión para proveedores reales |
+| LLM_MAX_TOTAL_TOKENS | 1000000 | Presupuesto por instancia para proveedores reales |
+| LLM_MAX_OUTPUT_TOKENS | 4096 | Salida máxima por petición real |
+| LLM_TIMEOUT_MS | 30000 | Timeout por petición remota |
+| MAX_SESSIONS | 100 | Sesiones acumuladas máximas en memoria |
 
-## Variables de entorno
+Solo hacen falta la clave y el modelo del proveedor seleccionado. Las claves se
+cargan exclusivamente en backend; no las publiques ni las pegues en el chat.
+No hay modelo por defecto en código. La configuración local inspeccionada
+selecciona demo y contiene gpt-4o-mini y gemini-3.8-flash como identificadores
+alternativos; esto no prueba la configuración desplegada en Render.
 
-| Variable | Predeterminado | Uso |
-|---|---:|---|
-| PORT | 3000 | Puerto HTTP |
-| LLM_PROVIDER | openai | Selección openai, gemini o demo |
-| REFERENCE_DATE | UTC actual | Fecha YYYY-MM-DD opcional para las vigencias del chat |
-| OPENAI_API_KEY | sin valor | Clave solo en backend |
-| OPENAI_MODEL | sin valor | Modelo elegido por el usuario |
-| GEMINI_API_KEY | sin valor | Clave de Google AI Studio, solo backend |
-| GEMINI_MODEL | sin valor | Modelo Gemini elegido por el usuario |
-| LLM_MAX_ITERATIONS | 25 | Máximo de llamadas al modelo por turno |
-| LLM_MAX_SESSION_TOKENS | 100000 | Presupuesto conservador por sesión |
-| LLM_MAX_TOTAL_TOKENS | 1000000 | Presupuesto compartido por toda la instancia |
-| LLM_MAX_OUTPUT_TOKENS | 4096 | Salida máxima por llamada |
-| LLM_TIMEOUT_MS | 30000 | Timeout de cada petición al proveedor |
-| MAX_SESSIONS | 100 | Sesiones máximas en memoria |
+## Proveedores, sesiones y límites
 
-Antes de cada petición se reserva el tamaño UTF-8 de mensajes y esquemas, más
-margen de protocolo y salida máxima. Es una cota conservadora, no un tokenizador.
-si un mensaje tiene continuación opaca, se cuenta la mayor representación en
-lugar de duplicar la misma llamada en sus dos formatos.
-Puede agotar el presupuesto antes del consumo real. Las reservas no se reintegran
-si una petición falla. Se muestra también el consumo reportado en respuestas
-válidas del proveedor. El límite global evita eludir el presupuesto creando sesiones.
-Los contadores se reinician con el proceso; no sustituyen cuotas del proveedor.
-Cada sesión admite hasta 500 eventos; no se persiste al reiniciar.
+- **demo:** no es un LLM. Reconoce un identificador de caso por mensaje y emite
+  lectura → mapeo → generación → paquete a través del registro Zod compartido.
+  Los argumentos siguientes y el resumen se derivan de resultados reales. No
+  interpreta preguntas generales ni corrige datos. PDF/portal mantienen sus
+  limitaciones y continúan al paquete. No necesita claves, no hace peticiones
+  externas y muestra cero tokens. Health y frontend indican demostración.
+- **openai:** fetch a Chat Completions; conserva tool_calls e IDs, valida la
+  respuesta y maneja errores de API y timeout.
+- **gemini:** SDK @google/genai. Comprueba el modelo y fuerza una llamada de
+  capacidad antes del primer procesamiento; no ejecuta esa herramienta de
+  prueba. Conserva firmas de continuación y traduce functionCall/functionResponse.
+  La ejecución de herramientas y los reintentos automáticos están desactivados.
 
-Gemini verifica el modelo al primer mensaje de la instancia: consulta `models.get`
-y, si admite generateContent, fuerza una llamada de capacidad que no ejecuta
-ninguna herramienta. Los metadatos por sí solos no prueban function calling.
-La sonda tiene un máximo de 1024 tokens de salida y su consumo se suma al turno.
-Se reservan 4096 tokens adicionales mientras esté pendiente esta comprobación;
-se mantiene la política conservadora de no reintegrar reservas. El resultado
-se cachea en la instancia si pasa. Una sonda fallida no declara el modelo válido.
-Los timeouts se aplican por petición, también en la consulta y la sonda.
-El límite existente de 100000 se conserva. La prueba Gemini de flujo completo
-usa 200000: con 100000, la cota conservadora detuvo el caso tras las cuatro
-herramientas y antes del resumen final. Para reproducir el flujo completo,
-configurar `LLM_MAX_SESSION_TOKENS=200000` y reiniciar; el consumo real será
-distinto con un modelo remoto. La prueba de corte también confirmó que
-no se omite el presupuesto al utilizar el segundo proveedor.
+Los límites de iteraciones y sesiones se mantienen en demo. En proveedores reales
+se reserva antes de cada petición una cota por bytes UTF-8, margen y salida
+máxima. No es consumo facturado ni un tokenizador; puede detenerse antes del
+consumo real. Las reservas fallidas no se reintegran. La sonda inicial Gemini
+tiene salida máxima de 1024 tokens y su consumo válido se suma al turno, con
+reserva adicional mientras esté pendiente. Una prueba controlada Gemini usa
+200000 de presupuesto por sesión; no implica consumo real ni garantía remota.
+
+Las sesiones son UUID en memoria. Se comprueba un umbral de 500 eventos antes de
+cada turno; un turno puede agregar varios. No hay caducidad ni borrado de sesión
+en servidor: Nueva conversación solo cambia el estado del navegador. Hay una
+sola solicitud en procesamiento por instancia para proteger archivos compartidos;
+las concurrentes reciben 409. Reiniciar pierde sesiones y contadores.
+
+## Ejemplo de chat y revisión humana
+
+```text
+Procesa el caso "co-industrias-delta". Dime qué campos faltan,
+qué soportes debo actualizar y si el paquete está listo para firma.
+No envíes nada todavía.
+```
+
+Al terminar el turno se muestran nombre, argumentos y resultados de cada llamada.
+Preparar un paquete o un mapeo con advertencias obliga a preguntar por revisión.
+Responder inmediatamente `Sí, confirmo` reconoce esa revisión, sin cambiar datos.
+Otra intervención invalida esa oportunidad. `envía` informa que no está implementado:
+no genera ENVIO-SIMULADO.md ni envía correo.
+
+## Demo sin modelo y pruebas
+
+**Detén primero el servidor con Ctrl+C.** demo.ts limpia out/ al comenzar; no la
+ejecutes en un servicio activo ni en Render durante una demostración.
+
+```powershell
+$env:REFERENCE_DATE = '2026-11-03'
+npm.cmd run demo
+```
+
+demo equivale a tsx demo.ts y no carga `.env`: lee la fecha del proceso. Sin esa
+variable utiliza 2026-11-03, a diferencia del chat que usa UTC actual.
+Alternativa sin tsx, también sin modelo:
+
+```powershell
+npm.cmd run build
+node dist/demo.js
+```
+
+Validación estática y toda la suite:
+
+```powershell
+npm.cmd run typecheck
+npm.cmd run build
+node --test tests/*.test.mjs
+node --check web/app.js
+```
+
+No existe un script npm test. La suite necesita compilar antes y utiliza copias
+temporales de fixtures y puertos propios. No limpia out/ del proyecto ni requiere
+claves externas.
+
+### Evidencia revalidada el 2026-11-04
+
+- `npx.cmd --no-install tsc --noEmit` y `npx.cmd --no-install tsc`: correctos.
+- `node --test tests/*.test.mjs`: **17 aprobadas, 0 fallidas**: 7 de agente,
+  5 de Gemini y 5 de demo. La suite demo procesó los cuatro casos por HTTP.
+- demo.ts compilado: correcto con REFERENCE_DATE=2026-11-03 en una copia temporal
+  de fixtures; no se limpió out/ ni se alteró un servidor activo del proyecto.
+- Excel reabierto y comparado por hojas, celdas, etiquetas y valores del maestro;
+  trazabilidad, faltantes, soportes, checklist, borradores sin datos bancarios,
+  registros, sesiones y revisión comprobados.
+- Negativos: inexistente, traversal, argumentos inválidos, JSON corrupto, mapeo
+  alterado, soporte ausente/eliminado, fecha inválida y recuperación de sesión.
+- JS sin errores de sintaxis y recursos HTML/JS/CSS comprobados por HTTP local.
+  No se afirma revisión visual de navegador ni uso exitoso de un LLM remoto.
+- No se midieron latencias, costo observado, porcentaje de cobertura ni arranque
+  en menos de dos minutos. Las respuestas remotas de tests son controladas.
+
+| Caso y país | Llenos | Faltantes | Requiere confirmación | Salida y observaciones |
+|---|---:|---:|---:|---|
+| co-industrias-delta · Colombia | 17 | 0 | 0 | Excel; Cámara vencida |
+| ec-corp-andina · Ecuador | 13 | 1 | 1 | PDF pendiente; Cámara vencida y soporte tributario ausente |
+| hn-agroexport-sula · Honduras | 9 | 1 | 1 | Excel; Cámara y parafiscales vencidos |
+| pa-logistica-istmo · Panamá | 8 | 0 | 1 | Valores copiables; Cámara vencida |
+
+Con fecha 2026-11-03 **ningún paquete queda listo para firma**. Cámara vence el
+2026-09-30 y parafiscales el 2026-08-31; Ecuador exige un certificado tributario
+ausente. Es un bloqueo esperado de negocio, no un fallo del programa. Además,
+PDF/portal no aportan un formulario soportado y sus paquetes quedan incompletos.
+Faltan número de contribuyente especial en Ecuador y referencias comerciales en
+Honduras; esos campos no bloquean por sí solos la firma.
+
+## Estructura y salidas
+
+```text
+agent/prompt.md                         comportamiento del agente
+src/server.ts                          configuración y arranque
+src/app.ts                             API y frontend estático
+src/agent.ts                           ciclo, sesiones, límites y revisión
+src/llm/                               contrato, selección y tres adaptadores
+src/tools/proveedor.ts                  cuatro herramientas P0
+src/tools/registry.ts                   esquemas, validación y allowlist
+src/knowledge/registro-proveedor.md     conocimiento del proceso
+web/                                   chat HTML/CSS/JavaScript
+fixtures/reto-01/                       datos de entrada, no modificar
+demo.ts                                herramientas sin modelo
+tests/                                 suite Node.js
+out/                                   salidas de ejecución
+```
+
+out/<caso>/ puede contener mapeo.json, faltantes.md, log.jsonl y formulario.xlsx.
+Panamá incluye valores-portal.md. paquete/ contiene Excel cuando corresponde,
+soportes disponibles, checklist.md y borrador-correo.md. Los soportes vencidos se
+copian y marcan como tales. También existe out/log.jsonl global. Los registros
+incluyen ts, herramienta, ok, resumen y sessionId, sin volcar datos bancarios.
+La demo directa añade out/pruebas/ para negativos aislados.
+
+Los archivos se generan en el servidor; **no hay endpoint de descarga** ni se
+sirve out/ por HTTP. Para revisar Excel en la defensa, genera y abre los archivos
+en local. Los soportes son placeholders .txt proporcionados por el reto.
 
 ## API
 
-- `GET /api/health`: `{ ok, provider, model, configured }`, sin claves. `configured`
-  solo indica configuración presente; no verifica acceso al proveedor.
-- `POST /api/chat`: `{ message, sessionId? }`. Omitir sessionId crea una sesión;
-  reutilizar el UUID recibido conserva contexto. Responde `{ sessionId, reply,
-  toolCalls, needsConfirmation, history, tokens }`. toolCalls incluye el historial
-  acumulado de llamadas de esa sesión. No se acepta historial aportado por el cliente.
-- `GET /api/sessions/:id`: historial visible completo, confirmación y contadores;
-  no devuelve el system prompt ni la configuración privada del adaptador.
+| Método y ruta | Contrato |
+|---|---|
+| GET /api/health | ok, provider, model, configured; demonstration:true solo en demo |
+| POST /api/chat | message y sessionId opcional; omitirlo crea sesión |
+| GET /api/sessions/:id | Historial visible, revisión y contadores |
 
-Errores: 400 entrada inválida, 404 sesión inexistente, 409 procesamiento en curso,
-429 capacidad de sesiones/historial, 503 proveedor sin configurar y 502 fallo de
-proveedor/formato. Los errores de herramientas llegan al modelo para recuperación.
-Los límites de iteraciones/tokens producen respuesta parcial y conservan resultados.
-Se serializa el procesamiento en toda la instancia porque out/<caso> es compartido.
-No se sirve out/ por HTTP ni se agrega envío alguno.
+El chat devuelve sessionId, reply, toolCalls, needsConfirmation, history y tokens.
+Las llamadas son acumulativas por sesión. configured indica configuración presente,
+no acceso remoto exitoso. No se acepta historial enviado por el cliente. Errores:
+400 entrada/JSON inválidos, 404 sesión/ruta inexistente, 409 ocupación, 429 capacidad,
+503 proveedor sin configurar y 502 error remoto o formato de respuesta. Un error
+de herramienta puede aparecer en un turno HTTP 200 con ok:false: 200 no significa
+que todas las operaciones hayan tenido éxito.
 
-## Arquitectura
+## Render: URL, configuración y persistencia
 
-- `src/server.ts`: entorno, arranque y enlace del adaptador seleccionado.
-- `src/app.ts`: Express, API y frontend estático.
-- `src/agent.ts`: bucle, sesiones, presupuestos y revisión entre turnos.
-- `src/llm/adapter.ts`: contrato propio, independiente del proveedor.
-- `src/llm/openai.ts`: fetch nativo a OpenAI; timeout y errores sanitizados.
-- `src/llm/gemini.ts`: SDK oficial @google/genai, comprobación de capacidades,
-  declaraciones JSON Schema, functionCall/functionResponse y firmas de continuación.
-- `src/llm/provider.ts`: selección de proveedor y lectura de sus variables.
-- `src/llm/demo.ts`: planificador determinista local, sin peticiones de red.
-- `src/tools/registry.ts`: esquemas JSON derivados de Zod, allowlist y validación
-  previa; audita rechazos sin duplicar logs de ejecuciones P0.
-- `src/tools/proveedor.ts`: herramientas P0 existentes, sin modificaciones.
-- `agent/prompt.md`: comportamiento; `src/knowledge/`: reglas separadas.
-- `web/`: chat sin framework, renderizado con textContent, sin interpretar HTML.
+URL proporcionada por la autora:
+[reto-01-periferia-7phu.onrender.com](https://reto-01-periferia-7phu.onrender.com/).
+**Disponibilidad pendiente de verificación externa:** se intentó consultar / y
+/api/health, pero las herramientas del entorno no pudieron acceder. No demuestra
+que el servicio esté caído. No se realizó POST en el servicio publicado.
 
-El protocolo conserva los mensajes assistant con tool_calls y las respuestas
-tool correlacionadas por ID. Referencia:
-[Function calling de OpenAI](https://developers.openai.com/api/docs/guides/function-calling).
-Gemini utiliza `@google/genai` 2.32.0, que ya estaba instalado; se conserva el rango
-2.x de package.json, compatible con el objetivo Node 20. No se cambia OpenAI ni
-se incrustan datos del maestro en el prompt. El ciclo solo transporta una
-continuación opaca y una reserva adicional; no interpreta datos de ningún SDK.
-Las firmas y partes internas Gemini permanecen fuera de los logs y del historial
-visible. AFC, continuaciones y reintentos automáticos del SDK están desactivados:
-solo el ciclo común decide ejecutar herramientas.
-Referencias: [SDK oficial](https://googleapis.github.io/js-genai/release_docs/index.html)
-y [metadatos de modelos](https://ai.google.dev/api/models).
+Configuración informada por la autora, no inspeccionada en el panel:
 
-## Herramientas, salidas y demo P0
+| Ajuste | Valor informado |
+|---|---|
+| Build Command | npm ci && npm run build |
+| Start Command | npm start |
 
-Las cuatro herramientas siguen siendo lectura, mapeo, generación Excel y paquete.
-Validan Zod y devuelven JSON `{ ok, data }` o `{ ok: false, error }` sin propagar
-excepciones. Rutas ancladas al contexto, fixtures de solo lectura y logs globales
-y por caso en out/. Un rechazo de argumentos también queda auditado.
+No hay render.yaml, Dockerfile ni configuración de despliegue versionada en el
+árbol auditado. Los comandos son coherentes con package.json; el build requiere
+las dependencias de desarrollo que incluyen tsc. El servidor usa PORT y 0.0.0.0.
+Proveedor, modelo, fecha, versión de Node y plan remotos quedan por confirmar.
+La ruta compatible de health es /api/health; no se verificó su ajuste en Render.
 
-PDF devuelve pendiente explícito; portal genera valores-portal.md y formato no
-soportado. Soportes ausentes/vencidos bloquean la firma; campos faltantes no.
-Sin formulario soportado, el paquete se informa incompleto. Los borradores no
-incluyen datos bancarios.
+Render usa filesystem efímero por defecto: sin persistencia configurada, out/ y
+logs se pierden en reinicios o redeploys. Las sesiones en memoria se pierden incluso
+con disco. No se comprobó que exista un disco persistente; no se promete retención.
+Fuentes: [Render Persistent Disks](https://render.com/docs/disks) y
+[Render Web Services](https://render.com/docs/web-services).
 
-```powershell
-npx.cmd tsc --noEmit
-npx.cmd tsx demo.ts
-```
+## Defensa y pendientes
 
-La demo limpia out/; ejecutarla con el servidor detenido. No requiere API key.
-Por defecto usa 2026-11-03; permite REFERENCE_DATE en el entorno del proceso.
-En esa fecha: CO 17/0/0; EC 13/1/1; HN 9/1/1; PA 8/0/1 (llenos/faltantes/confirmar).
-Todos los paquetes bloqueados por Cámara vencida; HN además por parafiscales y
-EC por soporte tributario ausente. Solo CO y HN producen Excel.
+1. Comprobar health en el enlace público o en local y mostrar el proveedor activo.
+   Si es demo, declarar que no utiliza un LLM.
+2. Procesar Colombia; abrir las cuatro llamadas, checklist y Excel local.
+3. Procesar Honduras para mostrar faltantes y RTN con revisión; Ecuador para PDF
+   pendiente y soporte ausente; Panamá para los valores copiables.
+4. Explicar los bloqueos de firma; responder Sí, confirmo y después envía para
+   mostrar que no se realiza un envío.
+5. Ejecutar tests y, solo con servidor detenido, demo.ts. La autora debe poder
+   explicar el código y mantener el enlace disponible durante la defensa.
 
-## Verificación real de la Fase 5
+Pendientes de la autora: verificar URL/health y configuración de Render; aportar
+fecha y evidencia sanitizada de errores externos; precisar el uso de ChatGPT;
+completar revisión visual. PDF P1, envío simulado P1 y bonus no se implementaron.
+No se garantiza una nota: el PRD anuncia 70/100, sin rúbrica detallada para calcularla.
 
-Ejecutado en Node 26.13.0:
-
-- `npx.cmd --no-install tsc --noEmit`: correcto.
-- `npx.cmd --no-install tsc` y `node dist/demo.js`: demo P0 completa, sin regresión.
-- `node --test tests/agent.test.mjs tests/gemini.test.mjs`: 12 pruebas correctas. Modelo/fetch controlados
-  prueban el ciclo con las cuatro herramientas reales, revisión entre turnos,
-  validación, límites, concurrencia, recuperación, protocolo OpenAI y errores.
-- La prueba Gemini usa el SDK oficial con HTTP local controlado y el endpoint
-  de chat: genera llamadas y ejecuta las cuatro herramientas reales, verifica
-  las firmas de continuación y los logs. Prueba también llamadas paralelas sin
-  IDs, modelos sin capacidad, errores y timeout. No contacta a Google.
-- Se arrancó/detuvo el servidor compilado para openai y gemini: health mostró
-  cada selección con configured:false. La fábrica admite una sola clave configurada.
-- Servidor compilado en PORT=3017: frontend y health 200; chat sin clave 503;
-  recuperación de historial 200. También se probaron rutas y JSON inválidos.
-- `node --check web/app.js`: correcto. No se hizo una revisión visual en navegador.
-- `npx.cmd --no-install tsx demo.ts`: continúa fallando antes de cargar la app
-  con ENOMEM en os.userInfo. No se alteraron permisos para evitarlo.
-
-Para repetir sin tsx:
-
-```powershell
-npx.cmd tsc
-node dist/demo.js
-node --test tests/agent.test.mjs tests/gemini.test.mjs
-```
-
-No había claves ni modelos configurados de OpenAI o Gemini: **no se probó una
-conversación con ninguno de los dos proveedores reales**, ni se verificó un
-modelo concreto de Google. Los tests controlados no prueban credenciales, cuota, modelo
-ni la calidad de respuesta del proveedor. Tras configurar .env, enviar el ejemplo
-anterior y comprobar las cuatro llamadas, el resumen y la pregunta de revisión.
-
-Link público y despliegue: pendientes. PDF P1, envío simulado P1 y bonus pendientes.
+Auditoría Git: .env, node_modules/ y out/ están ignorados y no están versionados.
+Excluirlos también de cualquier ZIP. No incluir claves ni archivos de ejecución.
+Esta auditoría no realiza commit ni push.
